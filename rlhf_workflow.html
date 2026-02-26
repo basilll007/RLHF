@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RLHF Workflow Diagram</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0c1117;
+    --bg2:       #111820;
+    --grid:      #1a2332;
+    --border:    #1e3a5f;
+    --pink:      #ff6b9d;
+    --blue:      #4ea8de;
+    --violet:    #9b8ff0;
+    --teal:      #2dd4bf;
+    --amber:     #fbbf24;
+    --green:     #4ade80;
+    --red:       #f87171;
+    --slate:     #64748b;
+    --text:      #e2e8f0;
+    --muted:     #475569;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 32px 16px;
+  }
+
+  .wrapper {
+    width: 900px;
+    max-width: 100%;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 36px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--grid);
+  }
+  .header-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--teal);
+    background: rgba(45,212,191,.08);
+    border: 1px solid rgba(45,212,191,.2);
+    padding: 3px 10px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .header p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: auto;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Diagram SVG ── */
+  .diagram-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px 32px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* subtle dot grid */
+  .diagram-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, #1e3a5f 1px, transparent 1px);
+    background-size: 28px 28px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--grid);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .legend-pip {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* flow pulse animation */
+  @keyframes dash {
+    to { stroke-dashoffset: -24; }
+  }
+  @keyframes dashRev {
+    to { stroke-dashoffset: 24; }
+  }
+  @keyframes fadeUp {
+    from { opacity:0; transform: translateY(10px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes glow-pulse {
+    0%,100% { filter: drop-shadow(0 0 4px currentColor); }
+    50%      { filter: drop-shadow(0 0 10px currentColor); }
+  }
+
+  .flow      { stroke-dasharray: 6 4; animation: dash 1.5s linear infinite; }
+  .flow-rev  { stroke-dasharray: 6 4; animation: dashRev 1.8s linear infinite; }
+  .flow-fast { stroke-dasharray: 4 3; animation: dash 0.9s linear infinite; }
+
+  .node-g { animation: fadeUp 0.5s ease both; }
+  .node-g:nth-child(1)  { animation-delay:.06s }
+  .node-g:nth-child(2)  { animation-delay:.12s }
+  .node-g:nth-child(3)  { animation-delay:.18s }
+  .node-g:nth-child(4)  { animation-delay:.24s }
+  .node-g:nth-child(5)  { animation-delay:.30s }
+  .node-g:nth-child(6)  { animation-delay:.36s }
+  .node-g:nth-child(7)  { animation-delay:.42s }
+  .node-g:nth-child(8)  { animation-delay:.48s }
+  .node-g:nth-child(9)  { animation-delay:.54s }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <span class="header-tag">RLHF · PPO</span>
+    <h1>Training Loop — Workflow Diagram</h1>
+    <p>distilgpt2 · TRL 0.8.6 · Triple-Signal Reward</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 836 680" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Arrow markers -->
+        <marker id="arr-blue"   markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#4ea8de"/></marker>
+        <marker id="arr-teal"   markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#2dd4bf"/></marker>
+        <marker id="arr-violet" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#9b8ff0"/></marker>
+        <marker id="arr-amber"  markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#fbbf24"/></marker>
+        <marker id="arr-green"  markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#4ade80"/></marker>
+        <marker id="arr-red"    markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#f87171"/></marker>
+        <marker id="arr-pink"   markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0,0 7,3.5 0,7" fill="#ff6b9d"/></marker>
+
+        <!-- Glows -->
+        <filter id="glow-pink"   x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-blue"   x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-amber"  x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-green"  x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+
+        <!-- Gradients -->
+        <linearGradient id="g-start"  x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ff6b9d"/><stop offset="100%" stop-color="#c84b8a"/></linearGradient>
+        <linearGradient id="g-policy" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e40af"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient>
+        <linearGradient id="g-calc"   x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#162032"/><stop offset="100%" stop-color="#1e2f45"/></linearGradient>
+        <linearGradient id="g-bert"   x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1e3a8a"/><stop offset="100%" stop-color="#1e40af"/></linearGradient>
+        <linearGradient id="g-flu"    x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4c1d95"/><stop offset="100%" stop-color="#5b21b6"/></linearGradient>
+        <linearGradient id="g-big"    x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#134e4a"/><stop offset="100%" stop-color="#0f766e"/></linearGradient>
+        <linearGradient id="g-comp"   x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#78350f"/><stop offset="100%" stop-color="#b45309"/></linearGradient>
+        <linearGradient id="g-ppo"    x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#14532d"/><stop offset="100%" stop-color="#166534"/></linearGradient>
+        <linearGradient id="g-ref"    x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7f1d1d"/><stop offset="100%" stop-color="#991b1b"/></linearGradient>
+      </defs>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- EDGES  (rendered under nodes) -->
+      <!-- ══════════════════════════════════════════════════ -->
+
+      <!-- START → Policy -->
+      <line x1="418" y1="64" x2="418" y2="102"
+            stroke="#ff6b9d" stroke-width="1.8"
+            marker-end="url(#arr-pink)" class="flow"/>
+
+      <!-- Policy → Calc -->
+      <line x1="418" y1="150" x2="418" y2="194"
+            stroke="#4ea8de" stroke-width="1.8"
+            marker-end="url(#arr-blue)" class="flow"/>
+
+      <!-- Calc → DistilBERT -->
+      <path d="M 360 232 C 280 232 220 268 220 300"
+            fill="none" stroke="#4ea8de" stroke-width="1.6"
+            marker-end="url(#arr-blue)" class="flow"/>
+      <text x="278" y="252" font-family="IBM Plex Mono" font-size="9.5" fill="#4ea8de" opacity=".8" text-anchor="middle">Signal 1</text>
+      <text x="278" y="264" font-family="IBM Plex Mono" font-size="8.5" fill="#64748b" text-anchor="middle">Positivity</text>
+
+      <!-- Calc → Fluency -->
+      <line x1="418" y1="250" x2="418" y2="298"
+            stroke="#9b8ff0" stroke-width="1.6"
+            marker-end="url(#arr-violet)" class="flow"/>
+      <text x="444" y="272" font-family="IBM Plex Mono" font-size="9.5" fill="#9b8ff0" opacity=".8">Signal 2</text>
+      <text x="444" y="284" font-family="IBM Plex Mono" font-size="8.5" fill="#64748b">Fluency</text>
+
+      <!-- Calc → Bigram -->
+      <path d="M 476 232 C 556 232 616 268 616 300"
+            fill="none" stroke="#2dd4bf" stroke-width="1.6"
+            marker-end="url(#arr-teal)" class="flow"/>
+      <text x="558" y="252" font-family="IBM Plex Mono" font-size="9.5" fill="#2dd4bf" opacity=".8" text-anchor="middle">Signal 3</text>
+      <text x="558" y="264" font-family="IBM Plex Mono" font-size="8.5" fill="#64748b" text-anchor="middle">Repetition</text>
+
+      <!-- DistilBERT → Composite -->
+      <path d="M 220 380 C 220 428 320 450 368 462"
+            fill="none" stroke="#4ea8de" stroke-width="1.6"
+            marker-end="url(#arr-blue)" class="flow"/>
+
+      <!-- Fluency → Composite -->
+      <line x1="418" y1="380" x2="418" y2="450"
+            stroke="#9b8ff0" stroke-width="1.6"
+            marker-end="url(#arr-violet)" class="flow"/>
+
+      <!-- Bigram → Composite -->
+      <path d="M 616 380 C 616 428 516 450 468 462"
+            fill="none" stroke="#2dd4bf" stroke-width="1.6"
+            marker-end="url(#arr-teal)" class="flow"/>
+
+      <!-- Composite → PPO -->
+      <line x1="418" y1="506" x2="418" y2="556"
+            stroke="#fbbf24" stroke-width="2.2"
+            marker-end="url(#arr-amber)" class="flow-fast"/>
+      <text x="444" y="532" font-family="IBM Plex Mono" font-size="9" fill="#fbbf24" opacity=".8">reward score</text>
+
+      <!-- PPO → Ref (KL penalty) -->
+      <path d="M 544 588 C 630 588 700 620 700 600 C 700 560 650 552 544 574"
+            fill="none" stroke="#f87171" stroke-width="1.6"
+            marker-end="url(#arr-red)" class="flow-rev"/>
+      <text x="700" y="598" font-family="IBM Plex Mono" font-size="9" fill="#f87171" text-anchor="middle" opacity=".9">KL Divergence</text>
+      <text x="700" y="610" font-family="IBM Plex Mono" font-size="8.5" fill="#64748b" text-anchor="middle">Penalty</text>
+
+      <!-- PPO → Policy  (big feedback loop) -->
+      <path d="M 292 574 C 130 574 110 126 292 126"
+            fill="none" stroke="#4ade80" stroke-width="1.8"
+            marker-end="url(#arr-green)" class="flow-rev"/>
+      <text x="168" y="358" font-family="IBM Plex Mono" font-size="9" fill="#4ade80" text-anchor="middle">New</text>
+      <text x="168" y="371" font-family="IBM Plex Mono" font-size="9" fill="#4ade80" text-anchor="middle">Policy</text>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- NODES -->
+      <!-- ══════════════════════════════════════════════════ -->
+
+      <!-- 1 · START -->
+      <g class="node-g" filter="url(#glow-pink)">
+        <rect x="288" y="14" width="260" height="50" rx="25"
+              fill="url(#g-start)" stroke="#ff6b9d" stroke-width="1.5" stroke-opacity=".5"/>
+        <text x="418" y="33" font-family="IBM Plex Mono" font-size="11" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">START</text>
+        <text x="418" y="51" font-family="IBM Plex Sans" font-size="10" font-weight="300"
+              fill="#ffc0d9" text-anchor="middle" dominant-baseline="middle">IMDB Review Prompt</text>
+        <!-- corner chip -->
+        <rect x="288" y="4" width="52" height="14" rx="7" fill="#7d1c4a"/>
+        <text x="314" y="13" font-family="IBM Plex Mono" font-size="8" font-weight="600"
+              fill="#ffb3d1" text-anchor="middle" dominant-baseline="middle">INPUT</text>
+      </g>
+
+      <!-- 2 · Active Policy -->
+      <g class="node-g" filter="url(#glow-blue)">
+        <rect x="282" y="102" width="272" height="48" rx="8"
+              fill="url(#g-policy)" stroke="#4ea8de" stroke-width="1.5" stroke-opacity=".6"/>
+        <text x="418" y="120" font-family="IBM Plex Mono" font-size="11" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">Active Policy Model</text>
+        <text x="418" y="138" font-family="IBM Plex Sans" font-size="10" font-weight="300"
+              fill="#93c5fd" text-anchor="middle" dominant-baseline="middle">distilgpt2 + Value Head · 82M params</text>
+        <rect x="282" y="92" width="86" height="14" rx="7" fill="#1e3a8a"/>
+        <text x="325" y="100.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#93c5fd" text-anchor="middle" dominant-baseline="middle">TRAINABLE</text>
+      </g>
+
+      <!-- 3 · Calculate Reward (diamond-oval) -->
+      <g class="node-g">
+        <rect x="330" y="194" width="176" height="56" rx="28"
+              fill="url(#g-calc)" stroke="#4ea8de" stroke-width="1.5" stroke-dasharray="5 3" stroke-opacity=".7"/>
+        <text x="418" y="216" font-family="IBM Plex Mono" font-size="10.5" font-weight="600"
+              fill="#4ea8de" text-anchor="middle" dominant-baseline="middle">Calculate Reward</text>
+        <text x="418" y="233" font-family="IBM Plex Sans" font-size="9.5" font-weight="300"
+              fill="#475569" text-anchor="middle" dominant-baseline="middle">3-signal decomposition</text>
+        <rect x="330" y="184" width="72" height="14" rx="7" fill="#0c1825"/>
+        <text x="366" y="192.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#4ea8de" text-anchor="middle" dominant-baseline="middle">DISPATCH</text>
+      </g>
+
+      <!-- Signal zone background -->
+      <rect x="140" y="290" width="556" height="98" rx="10"
+            fill="#0c1520" stroke="#1e3a5f" stroke-width="1" stroke-dasharray="4 3" stroke-opacity=".5"/>
+      <text x="418" y="284" font-family="IBM Plex Mono" font-size="8.5" fill="#1e3a5f"
+            text-anchor="middle" letter-spacing=".15em">REWARD SIGNALS</text>
+
+      <!-- 4 · DistilBERT -->
+      <g class="node-g">
+        <rect x="148" y="300" width="144" height="72" rx="8"
+              fill="url(#g-bert)" stroke="#4ea8de" stroke-width="1.2" stroke-opacity=".5"/>
+        <text x="220" y="323" font-family="IBM Plex Mono" font-size="10" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">DistilBERT</text>
+        <text x="220" y="339" font-family="IBM Plex Sans" font-size="9.5" font-weight="300"
+              fill="#93c5fd" text-anchor="middle" dominant-baseline="middle">Sentiment Classifier</text>
+        <text x="220" y="355" font-family="IBM Plex Mono" font-size="9" font-weight="400"
+              fill="#fbbf24" text-anchor="middle" dominant-baseline="middle">α = 1.0  ·  90.9% acc</text>
+        <rect x="148" y="290" width="52" height="14" rx="7" fill="#1e3a8a"/>
+        <text x="174" y="298.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#93c5fd" text-anchor="middle" dominant-baseline="middle">SIGNAL 1</text>
+      </g>
+
+      <!-- 5 · Fluency GPT-2 -->
+      <g class="node-g">
+        <rect x="346" y="300" width="144" height="72" rx="8"
+              fill="url(#g-flu)" stroke="#9b8ff0" stroke-width="1.2" stroke-opacity=".5"/>
+        <text x="418" y="323" font-family="IBM Plex Mono" font-size="10" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">Fluency Model</text>
+        <text x="418" y="339" font-family="IBM Plex Sans" font-size="9.5" font-weight="300"
+              fill="#c4b5fd" text-anchor="middle" dominant-baseline="middle">Frozen GPT-2 PPL</text>
+        <text x="418" y="355" font-family="IBM Plex Mono" font-size="9" font-weight="400"
+              fill="#fbbf24" text-anchor="middle" dominant-baseline="middle">β = 0.3  ·  ppl▸24.5</text>
+        <rect x="346" y="290" width="52" height="14" rx="7" fill="#4c1d95"/>
+        <text x="372" y="298.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#c4b5fd" text-anchor="middle" dominant-baseline="middle">SIGNAL 2</text>
+      </g>
+
+      <!-- 6 · Bigram Counter -->
+      <g class="node-g">
+        <rect x="544" y="300" width="144" height="72" rx="8"
+              fill="url(#g-big)" stroke="#2dd4bf" stroke-width="1.2" stroke-opacity=".5"/>
+        <text x="616" y="323" font-family="IBM Plex Mono" font-size="10" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">Bigram Counter</text>
+        <text x="616" y="339" font-family="IBM Plex Sans" font-size="9.5" font-weight="300"
+              fill="#5eead4" text-anchor="middle" dominant-baseline="middle">Unique-ratio metric</text>
+        <text x="616" y="355" font-family="IBM Plex Mono" font-size="9" font-weight="400"
+              fill="#fbbf24" text-anchor="middle" dominant-baseline="middle">γ = 0.1  ·  1−u/t</text>
+        <rect x="544" y="290" width="52" height="14" rx="7" fill="#134e4a"/>
+        <text x="570" y="298.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#5eead4" text-anchor="middle" dominant-baseline="middle">SIGNAL 3</text>
+      </g>
+
+      <!-- 7 · Composite Score -->
+      <g class="node-g" filter="url(#glow-amber)">
+        <rect x="278" y="450" width="280" height="56" rx="28"
+              fill="url(#g-comp)" stroke="#fbbf24" stroke-width="1.5" stroke-opacity=".6"/>
+        <text x="418" y="470" font-family="IBM Plex Mono" font-size="10.5" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">Composite Reward Score</text>
+        <text x="418" y="488" font-family="IBM Plex Mono" font-size="9.5" font-weight="400"
+              fill="#fde68a" text-anchor="middle" dominant-baseline="middle">α·pos − β·flu − γ·rep</text>
+        <rect x="278" y="440" width="100" height="14" rx="7" fill="#78350f"/>
+        <text x="328" y="448.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#fde68a" text-anchor="middle" dominant-baseline="middle">COMPOSITE</text>
+      </g>
+
+      <!-- 8 · PPO Trainer -->
+      <g class="node-g" filter="url(#glow-green)">
+        <rect x="282" y="556" width="272" height="56" rx="8"
+              fill="url(#g-ppo)" stroke="#4ade80" stroke-width="1.5" stroke-opacity=".6"/>
+        <text x="418" y="576" font-family="IBM Plex Mono" font-size="11" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">PPO Trainer</text>
+        <text x="418" y="594" font-family="IBM Plex Sans" font-size="10" font-weight="300"
+              fill="#86efac" text-anchor="middle" dominant-baseline="middle">Updates weights · TRL 0.8.6 · adap_kl_ctrl</text>
+        <rect x="282" y="546" width="76" height="14" rx="7" fill="#14532d"/>
+        <text x="320" y="554.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#86efac" text-anchor="middle" dominant-baseline="middle">OPTIMIZE</text>
+      </g>
+
+      <!-- 9 · Reference Model -->
+      <g class="node-g">
+        <rect x="590" y="549" width="192" height="70" rx="8"
+              fill="url(#g-ref)" stroke="#f87171" stroke-width="1.2" stroke-opacity=".5"/>
+        <text x="686" y="570" font-family="IBM Plex Mono" font-size="10" font-weight="700"
+              fill="white" text-anchor="middle" dominant-baseline="middle">Reference Model</text>
+        <text x="686" y="586" font-family="IBM Plex Sans" font-size="9.5" font-weight="300"
+              fill="#fca5a5" text-anchor="middle" dominant-baseline="middle">Frozen distilgpt2 anchor</text>
+        <text x="686" y="603" font-family="IBM Plex Mono" font-size="8.5" font-weight="400"
+              fill="#f87171" text-anchor="middle" dominant-baseline="middle">requires_grad=False</text>
+        <rect x="590" y="539" width="60" height="14" rx="7" fill="#7f1d1d"/>
+        <text x="620" y="547.5" font-family="IBM Plex Mono" font-size="7.5" font-weight="600"
+              fill="#fca5a5" text-anchor="middle" dominant-baseline="middle">FROZEN</text>
+      </g>
+
+    </svg>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-pip" style="background:#ff6b9d"></div>Input</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#4ea8de"></div>Policy Model</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#9b8ff0"></div>Fluency Signal</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#2dd4bf"></div>Repetition Signal</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#fbbf24"></div>Composite Score</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#4ade80"></div>PPO Optimizer</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#f87171"></div>KL Reference</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
